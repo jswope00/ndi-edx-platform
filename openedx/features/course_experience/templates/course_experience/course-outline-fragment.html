@@ -25,6 +25,161 @@ relative_dates_flag_is_enabled = RELATIVE_DATES_FLAG.is_enabled(course_key)
 is_course_staff = bool(user and course and has_access(user, 'staff', course, course.id))
 dates_banner_displayed = False
 %>
+
+<style>
+
+.course-outline
+  .block-tree
+  .section
+  ol.outline-item
+  .subsection
+  .subsection-title {
+  display: inline-block;
+  margin: 0;
+  font-weight: 400;
+  margin-left: 18px;
+}
+.course-outline
+  .block-tree
+  .section
+  ol.outline-item
+  .subsection
+  .subsection-text
+  .details {
+  font-size: 1rem;
+  color: #313131;
+  margin-left: 34px;
+}
+.course-outline
+  .block-tree
+  .section
+  ol.outline-item
+  .subsection
+  .subsection-text
+  .prerequisite {
+  color: #313131;
+  font-weight: 700;
+}
+.course-outline .block-tree .section ol.outline-item .subsection .vertical {
+  margin-left: 16px;
+  list-style-type: none;
+}
+.course-outline
+  .block-tree
+  .section
+  ol.outline-item
+  .subsection
+  .vertical
+  a.outline-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0 10px 0;
+  margin: 0 0 0 20px;
+  border-top: 1px solid #e7e7e7;
+}
+.course-outline
+  .block-tree
+  .section
+  ol.outline-item
+  .subsection
+  .vertical
+  a.outline-item:hover {
+  text-decoration: none;
+}
+.course-outline
+  .block-tree
+  .section
+  ol.outline-item
+  .subsection
+  .vertical
+  a.outline-item:hover
+  .vertical-details {
+  text-decoration: underline;
+}
+.course-outline
+  .block-tree
+  .section
+  ol.outline-item
+  .subsection
+  .vertical
+  a.outline-item:hover
+  .complete-checkmark {
+  text-decoration: none;
+}
+.course-outline
+  .block-tree
+  .section
+  ol.outline-item
+  .subsection
+  .vertical
+  .vertical-details {
+  float: left;
+}
+.course-outline
+  .block-tree
+  .section
+  ol.outline-item
+  .subsection
+  .vertical:hover,
+.course-outline
+  .block-tree
+  .section
+  ol.outline-item
+  .subsection
+  .vertical:focus {
+  background-color: palette(primary, x-back);
+  border-radius: 0.1875rem;
+  text-decoration: none;
+}
+.course-outline
+  .block-tree
+  .section
+  ol.outline-item
+  .subsection
+  .vertical
+  .vertical-actions
+  .resume-right {
+  position: relative;
+  top: calc(50% - (20px / 2));
+}
+button.accordion-trigger,
+button.prerequisite-button {
+  padding: 10px 0 10px 2px;
+  border: none;
+  width: 100%;
+  text-align: left;
+  margin: 0px;
+  background: none;
+  cursor: pointer;
+}
+button.accordion-trigger .fa,
+button.prerequisite-button .fa {
+  color: #0075b4;
+}
+#expand-collapse-outline-all-button {
+  float: right;
+  background-color: #fff;
+  color: #000;
+  cursor: pointer;
+}
+.expand-collapse-outline-all-extra-padding {
+  padding: 0 4px 0 4px;
+}
+.accordion-panel.is-hidden {
+  display: none;
+}
+.fa-check.fa.complete-checkmark {
+  border: 1px solid #008100;
+  margin-right: 10px;
+  border-radius: 100px;
+  color: white;
+  background-color: #008100;
+  float: right;
+}
+
+</style>
+
 <main role="main" class="course-outline" id="main" tabindex="-1">
     <%include file="/dates_banner.html" />
     % if course_sections is not None:
@@ -66,34 +221,20 @@ dates_banner_displayed = False
                 graded = 'graded' if subsection.get('graded') else ''
                 num_graded_problems = subsection.get('num_graded_problems', 0)
                 %>
-                        <li class="subsection accordion ${ 'current' if subsection.get('resume_block') else '' } ${graded} ${scored}">
-                            <a
-                            % if enable_links:
-                                href="${ subsection['lms_web_url'] }"
-                            % else:
-                                aria-disabled="true"
-                            % endif
-                                class="subsection-text outline-button"
-                                id="${ subsection['id'] }"
-                            >
-                            % if graded and scored and 'special_exam_info' not in subsection:
-                                      <span class="icon fa fa-pencil-square-o" aria-hidden="true"></span>
-                            % endif
-                                      <h4 class="subsection-title">
-                                          ${ subsection['display_name'] }
-                            % if num_graded_problems:
-                                          ${ngettext("({number} Question)",
-                                                     "({number} Questions)",
-                                                     num_graded_problems).format(number=num_graded_problems)}
-                            % endif
-                                      </h4>
-                            % if subsection.get('complete'):
-                                <span class="complete-checkmark fa fa-check" aria-hidden="true"></span>
-                                <span class="sr">${_("Completed")}</span>
-                            % endif
-                            % if needs_prereqs:
+
+
+                      <li class="subsection accordion ${ 'current' if subsection.get('resume_block') else '' } ${graded} ${scored}">
+                % if gated_subsection and not completed_prereqs:
+                                <a href="${ subsection['lms_web_url'] }">
+                                    <button class="subsection-text prerequisite-button"
+                                            id="${ subsection['id'] }">
+                                    <span class="menu-icon icon fa fa-lock"
+                                            aria-hidden="true">
+                                    </span>
+                                    <h4 class="subsection-title">
+                                        ${ subsection['display_name'] }
+                                    </h4>
                                     <div class="details prerequisite">
-                                        <span class="prerequisites-icon icon fa fa-lock" aria-hidden="true"></span>
                                         ${ _("Prerequisite: ") }
                                             <%
                                                 prerequisite_id = gated_content[subsection['id']]['prerequisite']
@@ -101,8 +242,23 @@ dates_banner_displayed = False
                                             %>
                                             ${ prerequisite_name }
                                     </div>
-                            % endif
+                % else:
+                                    <button class="subsection-text accordion-trigger"
+                                            id="${ subsection['id'] }"
+                                            aria-expanded="${ 'true' if subsection_is_auto_opened else 'false' }"
+                                            aria-controls="${ subsection['id'] }_contents">
+                                        <span class="fa fa-chevron-right ${ 'fa-rotate-90' if subsection_is_auto_opened else '' }"
+                                              aria-hidden="true"></span>
+                                        <h4 class="subsection-title">
+                                            ${ subsection['display_name'] }
+                                        </h4>
+                    % if subsection.get('complete'):
+                                        <span class="complete-checkmark fa fa-check"></span>
+                    % endif
+                % endif
                                         <div class="details">
+
+
 
                 ## There are behavior differences between rendering of subsections which have
                 ## exams (timed, graded, etc) and those that do not.
@@ -161,14 +317,43 @@ dates_banner_displayed = False
                                             </span>
                 % endif
                                         </div> <!-- /details -->
-                            </a>
-                        </li>
+                                    </button> <!-- /subsection-text -->
+                % if gated_subsection and not completed_prereqs:
+                                </a>
+                % endif
+                % if not gated_subsection or (gated_subsection and completed_prereqs):
+                                <ol class="outline-item accordion-panel ${ '' if subsection_is_auto_opened else 'is-hidden' }"
+                                    id="${ subsection['id'] }_contents"
+                                    aria-labelledby="${ subsection['id'] }"
+                                >
+                    % for vertical in subsection.get('children', []):
+                                    <li class="vertical outline-item focusable">
+                                        <a class="outline-item focusable"
+                                            href="${ vertical['lms_web_url'] }"
+                                            id="${ vertical['id'] }">
+                                            <div class="vertical-details">
+                                              <div class="vertical-title">
+                                                ${ vertical['display_name'] }
+                                              </div>
+                                            </div>
+                        % if vertical.get('complete'):
+                                                <span class="complete-checkmark fa fa-check"></span>
+                        % endif
+                                        </a>
+                                    </li>
+                    % endfor
+                                </ol>
+                % endif
+                            </li>
             % endfor
                     </ol>
                 </li>
         % endfor
         </ol>
     % endif
+
+
+
 </main>
 
 <%static:require_module_async module_name="js/dateutil_factory" class_name="DateUtilFactory">
